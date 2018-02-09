@@ -3,17 +3,17 @@
 ;         DAX-optimized benchmarks for memory mapping files swapping.          ;
 ;                          (engineering release).                              ;
 ;                              Win64 Edition.                                  ; 
-;                           (C)2017 IC Book Labs.                              ;
+;                           (C)2018 IC Book Labs.                              ;
 ;                                                                              ;
 ;  This file is main module: translation object, interconnecting all modules.  ;
 ;                                                                              ;
-;        Translation by Flat Assembler version 1.71.49 (Dec 06, 2015)          ;
+;        Translation by Flat Assembler version 1.72 (Oct 10, 2017)             ;
 ;           Visit http://flatassembler.net/ for more information.              ;
 ;           For right tabulations, please edit by FASM Editor 2.0              ;
 ;                                                                              ;
 ;==============================================================================;
 
-format PE64 console         ; note use "GUI" for FDBG session
+format PE64 console
 entry start
 include 'win64a.inc'
 
@@ -25,7 +25,6 @@ start:
 ;---------- 32 byte parameters shadow and +8 alignment ------------------------;
 
 sub rsp,8*5
-; jmp DEBUG                 ; note use "GUI" and this JMP for FDBG session
 
 ;---------- Initializing console input-output ---------------------------------;
 
@@ -57,31 +56,15 @@ call SkipExtraSpaces        ; Skip extra spaces
 cmp al,0
 je DefaultMode              ; Go if command line parameters absent 
 
-lea rdi,[Parameter1]        ; Extract first parameter   
+lea rdi,[Parameter1]        ; Extract first parameter = file name   
 call ExtractParameter
 cmp al,0
 je ErrorCmdLine
 call SkipExtraSpaces        ; Skip extra spaces
 cmp al,0
-je ErrorCmdLine 
-
-lea rdi,[Parameter2]        ; Extract second parameter
-call ExtractParameter
-cmp al,0                    ; This used if extra parameters is error
-je ErrorCmdLine    
-call SkipExtraSpaces        ; Skip extra spaces
-cmp al,0
-je ErrorCmdLine 
-
-lea rdi,[Parameter3]        ; Extract third parameter
-call ExtractParameter
-cmp al,0                    ; This used if extra parameters is error
-je ErrorCmdLine    
-call SkipExtraSpaces        ; Skip extra spaces
-cmp al,0
-je ErrorCmdLine 
-
-lea rdi,[Parameter4]        ; Extract forth parameter
+je ErrorCmdLine
+ 
+lea rdi,[Parameter2]        ; Extract second parameter = file size, MB
 call ExtractParameter
 cmp al,0                    ; This used if extra parameters is error
 jne ErrorCmdLine
@@ -91,16 +74,13 @@ jmp VisualPrimary           ; Jump over default mode
 ;---------- Support default mode for parameters absent in the command line ----;
 
 DefaultMode:
+
 lea rcx,[CmdLineEmpty]
 call ConsoleStringWrite     ; Output warning if run without parameters
 lea rax,[DefaultPath]
 mov [UsedPath],rax          ; Set path = default path
 mov rax,[DefaultSize]
 mov [UsedSize],rax          ; set size = default size
-mov rax,[DefaultNUMA]
-mov [UsedNUMA],rax          ; set NUMA domain = default NUMA domain
-mov rax,[DefaultCPU]
-mov [UsedCPU],rax           ; set CPU affinity = default CPU affinity
 
 lea rcx,[Interpreted1]
 call ConsoleStringWrite
@@ -116,29 +96,7 @@ call SizePrint64
 mov al,0
 stosb
 lea rcx,[TextBuffer]
-call ConsoleStringWrite     ; Additional visual interpreted value, for debug
-
-lea rcx,[Interpreted3]
-call ConsoleStringWrite
-lea rdi,[TextBuffer]        ; RDI = Pointer to destination transit buffer
-mov eax,dword [UsedNUMA]    ; RAX = size in bytes
-mov bl,0                    ; BL = 0 means template auto-select
-call DecimalPrint32
-mov al,0
-stosb
-lea rcx,[TextBuffer]
-call ConsoleStringWrite     ; Additional visual interpreted value, for debug
-
-lea rcx,[Interpreted4]
-call ConsoleStringWrite
-lea rdi,[TextBuffer]        ; RDI = Pointer to destination transit buffer
-mov eax,dword [UsedCPU]     ; RAX = size in bytes
-mov bl,0                    ; BL = 0 means template auto-select
-call DecimalPrint32
-mov al,0
-stosb
-lea rcx,[TextBuffer]
-call ConsoleStringWrite     ; Additional visual interpreted value, for debug
+call ConsoleStringWrite      ; Additional visual interpreted value, for debug
 
 jmp RunTest
 
@@ -150,20 +108,9 @@ lea rcx,[ParmName1]         ; Visual parameter 1 string
 call ConsoleStringWrite
 lea rcx,[Parameter1]
 call ConsoleStringWrite
-
 lea rcx,[ParmName2]         ; Visual parameter 2 string
 call ConsoleStringWrite
 lea rcx,[Parameter2]
-call ConsoleStringWrite
-
-lea rcx,[ParmName3]         ; Visual parameter 3 string
-call ConsoleStringWrite
-lea rcx,[Parameter3]
-call ConsoleStringWrite
-
-lea rcx,[ParmName4]         ; Visual parameter 4 string
-call ConsoleStringWrite
-lea rcx,[Parameter4]
 call ConsoleStringWrite
 
 ;---------- Interpreting and visual parameter #1 = file path ------------------; 
@@ -193,40 +140,6 @@ stosb
 lea rcx,[TextBuffer]
 call ConsoleStringWrite     ; Additional visual interpreted value, for debug
 
-;---------- Interpreting and visual parameter #3 = NUMA domain number ---------;
-
-lea rsi,[Parameter3]
-call StringReadInteger
-jc ErrorCmdLine
-mov [UsedNUMA],rax
-lea rcx,[Interpreted3]
-call ConsoleStringWrite
-lea rdi,[TextBuffer]        ; RDI = Pointer to destination transit buffer
-mov eax,dword [UsedNUMA]    ; RAX = size in bytes
-mov bl,0                    ; BL = 0 means template auto-select
-call DecimalPrint32
-mov al,0
-stosb
-lea rcx,[TextBuffer]
-call ConsoleStringWrite     ; Additional visual interpreted value, for debug
-
-;---------- Interpreting and visual parameter #4 = Thread ideal processor -----;
-
-lea rsi,[Parameter4]
-call StringReadInteger
-jc ErrorCmdLine
-mov [UsedCPU],rax
-lea rcx,[Interpreted4]
-call ConsoleStringWrite
-lea rdi,[TextBuffer]        ; RDI = Pointer to destination transit buffer
-mov eax,dword [UsedCPU]     ; RAX = size in bytes
-mov bl,0                    ; BL = 0 means template auto-select
-call DecimalPrint32
-mov al,0
-stosb
-lea rcx,[TextBuffer]
-call ConsoleStringWrite     ; Additional visual interpreted value, for debug
-
 
 ;=== WRITE PHASE === 
 
@@ -244,7 +157,7 @@ call [Sleep]      ; This method is simplest and minimum CPU utilization
 
 ;---------- Create file -------------------------------------------------------;
 
-lea rcx,[TraceWrite]
+lea rcx,[TraceInitWrite]
 call ConsoleStringWrite
 
 lea r15,[StepCreateW]                  ; R15 = Step name for errors handling
@@ -266,58 +179,8 @@ xchg rbx,rax                 ; RBX = File Handle
 
 ;---------- Create mapping object for file ------------------------------------;
 
-;-
-; lea r15,[StepMapW]           ; R15 = Step name for errors handling
-; ; xor r14d,r14d              ; R14 = 0, means get status from OS 
-; xor eax,eax                  ; Entire RAX = 0
-; push rax                     ; Parm#6 = Name of mapped object, NULL = no name  
-; mov eax,dword [UsedSize+0]
-; push rax                     ; Parm#5 = Mapped file size, low 32-bit
-; mov r9d,dword [UsedSize+4]   ; Parm#4 = Mapped file size, high 32-bit 
-; mov r8d,PAGE_READWRITE       ; Parm#3 = Memory page protection attribute
-; xor edx,edx                  ; Parm#2 = Security attributes, not used (NULL)
-; mov rcx,rbx                  ; Parm#1 = File handle
-; sub rsp,32                   ; Create stack frame
-; call [CreateFileMappingA]
-; add rsp,32+16                ; Remove stack frame and 2 parameters
-; test rax,rax
-; jz ErrorProgram              ; Go if error create mapping object
-; xchg rbp,rax                 ; RBP = Mapping File Object Handle 
-;-
-
-lea r15,[StepMapW]           ; R15 = Step name for errors handling
-; Get thread handle
-xor r14d,r14d                ; R14 = 0, means get status from OS
-call [GetCurrentThread]
-test rax,rax
-jz ErrorProgram
-mov [ThreadHandle],rax
-
-; Set Thread Ideal Processor (required affinity settings for NUMA node)
-mov rcx,rax  ; [ThreadHandle]
-mov edx,dword [UsedCPU]
-call [SetThreadIdealProcessor]
-cmp rax,-1
-je ErrorProgram
-
-; Get handle for KERNEL32.DLL
-lea rcx,[NameKernel32]       ; RCX = Parm#1 = Pointer to module name string
-call [GetModuleHandle]       ; RAX = Return module handle
-test rax,rax
-jz ErrorProgram
-
-; Get function pointer
-mov rcx,rax                  ; RCX = Parm#1 = Module handle
-lea rdx,[NameFunction]       ; RDX = Parm#2 = Pointer to function name
-call [GetProcAddress]        ; RAX = Return function address
-test rax,rax
-jz ErrorProgram
-mov [Function_CreateFileMappingNumaA],rax
-
-; Call NUMA-oriented mapping function
+lea r15,[StepMapW]           ; R15 = Step name for errors handling, R14 still 0
 xor eax,eax                  ; Entire RAX = 0
-push rax                     ; Not existed parm #8 for alignment
-push [UsedNUMA]              ; Parm#7 = NUMA domain number
 push rax                     ; Parm#6 = Name of mapped object, NULL = no name  
 mov eax,dword [UsedSize+0]
 push rax                     ; Parm#5 = Mapped file size, low 32-bit
@@ -326,16 +189,15 @@ mov r8d,PAGE_READWRITE       ; Parm#3 = Memory page protection attribute
 xor edx,edx                  ; Parm#2 = Security attributes, not used (NULL)
 mov rcx,rbx                  ; Parm#1 = File handle
 sub rsp,32                   ; Create stack frame
-call [Function_CreateFileMappingNumaA]
-add rsp,32+32                ; Remove stack frame and 4 parameters
+call [CreateFileMappingA]
+add rsp,32+16                ; Remove stack frame and 2 parameters
 test rax,rax
 jz ErrorProgram              ; Go if error create mapping object
 xchg rbp,rax                 ; RBP = Mapping File Object Handle 
 
 ;---------- Allocate mapping object at application memory ---------------------;
 
-lea r15,[StepViewW]          ; R15 = Step name for errors handling
-xor r14d,r14d                ; R14 = 0, means get status from OS (already 0) 
+lea r15,[StepViewW]          ; R15 = Step name for errors handling, R14 still 0
 xor eax,eax                  ; Entire RAX = 0
 push rax                     ; This empty parameter #6 for stack alignment
 mov rax,[UsedSize]
@@ -353,8 +215,7 @@ xchg rsi,rax                 ; RSI = Mapping Object Linear Virtual Address
 
 ;---------- Fill buffer for make swapping request -----------------------------; 
 
-lea r15,[StepModifyW]        ; R15 = Step name for errors handling
-; xor r14d,r14d              ; R14 = 0, means get status from OS 
+lea r15,[StepModifyW]        ; R15 = Step name for errors handling, R14 still 0
 cld                          ; Increment mode for string instructions
 mov rdi,rsi                  ; RDI = Destination pointer for write array
 mov rcx,[UsedSize]
@@ -362,10 +223,29 @@ shr rcx,3                    ; RCX = Number of 64-bit quad words
 mov rax,'    DATA'           ; RAX = Pattern for write array 
 rep stosq                    ; Write array
 
+;---------- Message about WRITE with debug dump -------------------------------;
+
+push rdi
+mov rax,rbx
+lea rdi,[TWD1]
+call HexPrint64
+mov rax,rbp
+lea rdi,[TWD2]
+call HexPrint64
+mov rax,rsi
+lea rdi,[TWD3]
+call HexPrint64
+lea rax,[rsi-1]
+add rax,[UsedSize] 
+lea rdi,[TWD4]
+call HexPrint64
+lea rcx,[TraceWriteDump]
+call ConsoleStringWrite
+pop rdi
+
 ;---------- Flush buffer (write to disk) with time measurement ----------------;
 
-lea r15,[StepFlushW]            ; R15 = Step name for errors handling
-; xor r14d,r14d                 ; R14 = 0, means get status from OS (already 0) 
+lea r15,[StepFlushW]        ; R15 = Step name for errors handling, R14 still 0
 ;--- Start time ---
 xor eax,eax                     ; Entire RAX = 0
 push rax                        ; Create variable for update by function
@@ -398,8 +278,7 @@ mov [ResultWrite],r12           ; Save result for WRITE
 
 ;---------- Close mapping object ----------------------------------------------;
 
-lea r15,[StepCloseMapW]    ; R15 = Step name for errors handling
-; xor r14d,r14d            ; R14 = 0, means get status from OS (already 0)
+lea r15,[StepCloseMapW]    ; R15 = Step name for errors handling, R14 still 0
 mov rcx,rbp                ; Parm#1 = Mapping File Object Handle
 call [CloseHandle]
 test rax,rax
@@ -407,8 +286,7 @@ jz ErrorProgram            ; Go if close mapping object error
 
 ;---------- Close file --------------------------------------------------------;
 
-lea r15,[StepCloseFileW]   ; R15 = Step name for errors handling
-; xor r14d,r14d            ; R14 = 0, means get status from OS (already 0) 
+lea r15,[StepCloseFileW]   ; R15 = Step name for errors handling, R14 still 0
 mov rcx,rbx                ; Parm#1 = File handle
 call [CloseHandle]
 test rax,rax
@@ -417,24 +295,11 @@ jz ErrorProgram            ; Go if close file error
 ;---------- Unmap view of file ------------------------------------------------;
 ; This step added at v0.02, otherwise cannot delete file with access denied
 
-lea r15,[StepUnmapW]       ; R15 = Step name for errors handling
-; xor r14d,r14d            ; R14 = 0, means get status from OS (already 0) 
+lea r15,[StepUnmapW]       ; R15 = Step name for errors handling, R14 still 0
 mov rcx,rsi                ; Parm#1 = Base virtual address of unmapped range
 call [UnmapViewOfFile]
 test rax,rax
 jz ErrorProgram            ; Go if unmap operation error
-
-;---------- Delete file -------------------------------------------------------;
-; This step added at v0.02, only possible if file unmapped
-; This step removed, because file after WRITE used for READ,
-; delete not required between 2 phases
-
-;- lea r15,[StepDeleteFileW]  ; R15 = Step name for errors handling
-;- ; xor r14d,r14d            ; R14 = 0, means get status from OS (already 0) 
-;- lea rcx,[FileName]         ; RCX = Parm#1 = Pointer to file path
-;- call [DeleteFile]
-;- test rax,rax
-;- jz ErrorProgram            ; Go if delete operation error
 
 
 ;=== READ PHASE ===
@@ -449,7 +314,7 @@ call [Sleep]      ; This method is simplest and minimum CPU utilization
 
 ;---------- Open file ---------------------------------------------------------;
 
-lea rcx,[TraceRead]
+lea rcx,[TraceInitRead]
 call ConsoleStringWrite
 
 lea r15,[StepOpenR]                    ; R15 = Step name for errors handling
@@ -471,33 +336,9 @@ xchg rbx,rax                 ; RBX = File Handle
 
 ;---------- Create mapping object for file ------------------------------------;
 
-;-
-; lea r15,[StepMapR]           ; R15 = Step name for errors handling
-; ; xor r14d,r14d              ; R14 = 0, means get status from OS (already 0) 
-; xor eax,eax                  ; Entire RAX = 0
-; push rax                     ; Parm#6 = Name of mapped object, NULL = no name
-; mov eax,dword [UsedSize+0]
-; push rax                     ; Parm#5 = Mapped file size, low 32-bit
-; mov r9d,dword [UsedSize+4]   ; Parm#4 = Mapped file size, high 32-bit 
-; mov r8d,PAGE_READWRITE       ; Parm#3 = Memory page protection attribute
-; xor edx,edx                  ; Parm#2 = Security attributes, not used (NULL)
-; mov rcx,rbx                  ; Parm#1 = File handle
-; sub rsp,32                   ; Create stack frame
-; call [CreateFileMappingA]
-; add rsp,32+16                ; Remove stack frame and 2 parameters
-; test rax,rax
-; jz ErrorProgram              ; Go if error create mapping object
-; xchg rbp,rax                 ; RBP = Mapping Object Handle 
-;-
-
-lea r15,[StepMapR]           ; R15 = Step name for errors handling
-xor r14d,r14d                ; R14 = 0, means get status from OS (already 0) 
-
-; Call NUMA-oriented mapping function
+lea r15,[StepMapR]           ; R15 = Step name for errors handling, R14 still 0
 xor eax,eax                  ; Entire RAX = 0
-push rax                     ; Not existed parm #8 for alignment
-push [UsedNUMA]              ; Parm#7 = NUMA domain number
-push rax                     ; Parm#6 = Name of mapped object, NULL = no name  
+push rax                     ; Parm#6 = Name of mapped object, NULL = no name
 mov eax,dword [UsedSize+0]
 push rax                     ; Parm#5 = Mapped file size, low 32-bit
 mov r9d,dword [UsedSize+4]   ; Parm#4 = Mapped file size, high 32-bit 
@@ -505,16 +346,15 @@ mov r8d,PAGE_READWRITE       ; Parm#3 = Memory page protection attribute
 xor edx,edx                  ; Parm#2 = Security attributes, not used (NULL)
 mov rcx,rbx                  ; Parm#1 = File handle
 sub rsp,32                   ; Create stack frame
-call [Function_CreateFileMappingNumaA]
-add rsp,32+32                ; Remove stack frame and 4 parameters
+call [CreateFileMappingA]
+add rsp,32+16                ; Remove stack frame and 2 parameters
 test rax,rax
 jz ErrorProgram              ; Go if error create mapping object
-xchg rbp,rax                 ; RBP = Mapping File Object Handle 
+xchg rbp,rax                 ; RBP = Mapping Object Handle 
 
 ;---------- Allocate mapping object at application memory ---------------------;
 
-lea r15,[StepViewR]          ; R15 = Step name for errors handling
-; xor r14d,r14d              ; R14 = 0, means get status from OS 
+lea r15,[StepViewR]          ; R15 = Step name for errors handling, R14 still 0
 xor eax,eax                  ; Entire RAX = 0
 push rax                     ; This empty parameter #6 for stack alignment
 mov rax,[UsedSize]
@@ -530,10 +370,29 @@ test rax,rax
 jz ErrorProgram              ; Go if mapping error
 xchg rsi,rax                 ; RSI = Mapping Object Address
 
+;---------- Message about READ with debug dump --------------------------------;
+
+push rdi
+mov rax,rbx
+lea rdi,[TRD1]
+call HexPrint64
+mov rax,rbp
+lea rdi,[TRD2]
+call HexPrint64
+mov rax,rsi
+lea rdi,[TRD3]
+call HexPrint64
+lea rax,[rsi-1]
+add rax,[UsedSize] 
+lea rdi,[TRD4]
+call HexPrint64
+lea rcx,[TraceReadDump]
+call ConsoleStringWrite
+pop rdi
+
 ;---------- Memory read for make swapping request, measure time ---------------;
 
-lea r15,[StepLoadR]             ; R15 = Step name for errors handling
-; xor r14d,r14d                 ; R14 = 0, means get status from OS (already 0) 
+lea r15,[StepLoadR]         ; R15 = Step name for errors handling, R14 still 0
 ;--- Start time ---
 xor eax,eax                     ; Entire RAX = 0
 push rax                        ; Create variable for update by function
@@ -570,8 +429,7 @@ mov [ResultRead],r12            ; Save result for READ
 
 ;---------- Close mapping object ----------------------------------------------;
 
-lea r15,[StepCloseMapR]    ; R15 = Step name for errors handling
-; xor r14d,r14d            ; R14 = 0, means get status from OS 
+lea r15,[StepCloseMapR]    ; R15 = Step name for errors handling, R14 still 0
 mov rcx,rbp                ; Parm#1 = Mapping File Object Handle
 call [CloseHandle]
 test rax,rax
@@ -579,8 +437,7 @@ jz ErrorProgram            ; Go if close mapping object error
 
 ;---------- Close file --------------------------------------------------------;
 
-lea r15,[StepCloseFileR]   ; R15 = Step name for errors handling
-; xor r14d,r14d            ; R14 = 0, means get status from OS (already 0) 
+lea r15,[StepCloseFileR]   ; R15 = Step name for errors handling, R14 still 0
 mov rcx,rbx                ; Parm#1 = File handle
 call [CloseHandle]
 test rax,rax
@@ -589,8 +446,7 @@ jz ErrorProgram            ; Go if close file error
 ;---------- Unmap view of file ------------------------------------------------;
 ; This step added at v0.02, otherwise cannot delete file with access denied
 
-lea r15,[StepUnmapR]       ; R15 = Step name for errors handling
-; xor r14d,r14d            ; R14 = 0, means get status from OS (already 0) 
+lea r15,[StepUnmapR]       ; R15 = Step name for errors handling, R14 still 0
 mov rcx,rsi                ; Parm#1 = Base virtual address of unmapped range
 call [UnmapViewOfFile]
 test rax,rax
@@ -599,16 +455,16 @@ jz ErrorProgram            ; Go if unmap operation error
 ;---------- Delete file -------------------------------------------------------;
 ; This step added at v0.02, only possible if file unmapped
 
-lea r15,[StepDeleteFileR]  ; R15 = Step name for errors handling
-; xor r14d,r14d            ; R14 = 0, means get status from OS (already 0) 
+lea r15,[StepDeleteFileR]  ; R15 = Step name for errors handling, R14 still 0
 mov rcx,[UsedPath]         ; RCX = Parm#1 = Pointer to file path
 call [DeleteFile]
 test rax,rax
 jz ErrorProgram           ; Go if delete operation error
 
+
 ;=== CALCULATIONS PHASE ===
 
-lea rcx,[TraceBuiltResult]
+lea rcx,[TraceBuildResult]
 call ConsoleStringWrite
 
 ;---------- Detect x87 FPU ----------------------------------------------------;
@@ -624,7 +480,7 @@ cpuid
 test dl,00000001b
 jz ErrorProgram         ; Go if x87 FPU absent
 
-;---------- Calculate disk read speed -----------------------------------------;
+;---------- Calculate disk read and write speed -------------------------------;
 
 finit                 ; Initialize x87 FPU
 fild [ConstK100]      ; ST0 = 1024*100
@@ -661,10 +517,10 @@ lea rdi,[TextBuffer]         ; RDI = Buffer destination pointer
 lea rbx,[ResultRead]         ; RBX = Pointer to 2 results: Read and Write
 mov ecx,2                    ; 2 items: load (read) and store (write)
 @@:                          ; cycle for 2 items
-mov rax,[rbx]
-call ItemWrite               ; Write parameter name and " = "
-call FloatPrintP1            ; Write parameter numeric value
-call ItemWrite               ; Write parameter units
+mov rax,[rbx]                ; RAX = numeric value of parameter to visual
+call ItemWrite               ; Write parameter name and " = ", update RSI, RDI
+call FloatPrintP1            ; Write parameter numeric value, update RDI
+call ItemWrite               ; Write parameter units, update RSI, RDI
 add rbx,8
 loop @b                      ; Cycle for 2 items: load (read) and store (write) 
 mov al,0
@@ -724,20 +580,8 @@ jnz @f                 ; Skip get OS status if non-API error cause
 call [GetLastError]    ; RAX = Get last error code, caused by OS API call
 @@:
 call HexPrint64
-mov ax,0000h + 'h'
-stosw                  ; "h" after hex number and 0 = terminator
-;---
-; Display OS message box, return button ID
-; Parm#1 = RCX = Parent window handle
-; Parm#2 = RDX = Pointer to message string must be valid at this point,
-; Parm#3 = R8  = Caption=0 means error message, otherwise pointer to caption
-; Parm#4 = R9  = Message Box Icon Error = MB_ICNERROR
-; Output = RAX = Pressed button ID, not used at this call
-; Note INVOKE replaced to instructions for code size optimization!
-; FASM recommend: invoke MessageBoxA,0,r15,0,MB_ICONERROR
-; Note XOR ECX,ECX clear entire RCX by x64 architecture rules
-;---
-
+mov eax,000A0D00h + 'h'
+stosd                      ; "h" after hex number, CR, LF and 0 = terminator
 lea rcx,[TextBuffer]
 call ConsoleStringWrite    ; Output prepared error report
 jmp ExitProgram
@@ -754,14 +598,14 @@ include 'console\consolestringwrite.inc'  ; Console output
 ; include 'console\createandwritefile.inc' ; Create and Write file
 ; include 'console\openandreadfile.inc'    ; Open and Read file
 
-;---------- Subroutines for output strings built and input strings parse ------;
+;---------- Subroutines for output strings build and input strings parse ------;
 
 include 'strings\stringwrite.inc'         ; Write string, incl. selector-based
 include 'strings\itemwrite.inc'           ; Write string with CR,LF and spaces 
-include 'strings\decprint.inc'            ; Built string for decimal numbers 
-include 'strings\hexprint.inc'            ; Built string for hexadecimal num.
-include 'strings\floatprint.inc'          ; Built string for float numbers
-include 'strings\sizeprint.inc'           ; Built string for memory block size
+include 'strings\decprint.inc'            ; Build string for decimal numbers 
+include 'strings\hexprint.inc'            ; Build string for hexadecimal num.
+include 'strings\floatprint.inc'          ; Build string for float numbers
+include 'strings\sizeprint.inc'           ; Build string for memory block size
 include 'strings\stringreadinteger.inc'   ; Parse integer from text string
 
 ;---------- Subroutines for system information --------------------------------;
@@ -780,13 +624,9 @@ OutputDevice  DQ  0     ; Handle for Output Device (example=display)
 ;--- Current settings for parameters, pre-blanked NULL for debug ---
 UsedPath      DQ  0     ; Pointer to path string
 UsedSize      DQ  0     ; File size value, bytes
-UsedNUMA      DQ  0     ; NUMA domain number
-UsedCPU       DQ  0     ; Thread Ideal Processor
 ;--- Default settings for parameters ---
 DefaultPath   DB  'myfile.bin',0   ; default name, current directory
 DefaultSize   DQ  1024*1024*1024   ; 1 GB default size
-DefaultNUMA   DQ  0                ; default NUMA domain number
-DefaultCPU    DQ  0                ; default Thread Ideal Processor
 ;--- Benchmarks results, sequental addressing used, +8 ---
 ResultRead    DQ  0
 ResultWrite   DQ  0
@@ -799,26 +639,31 @@ FILE_FLAGS  EQU  FILE_ATTRIBUTE_NORMAL     \
 FileFlags         DQ  FILE_FLAGS
 ;--- Product ID string ---
 ProductID         DB  0Ah,0Dh
-                  DB  'Swapping/DAX benchmarks v0.12 (Windows x64 console)'
+                  DB  'Swapping/DAX benchmarks v0.13 (Windows x64 console)'
                   DB  0Ah,0Dh
-                  DB  'NUMA edition'                  
-                  DB  0Ah,0Dh
-                  DB  '(C) 2017 IC Book Labs.',0  
+                  DB  '(C) 2018 IC Book Labs.',0  
 ;--- Parameters names strings ---              
 ParmName1         DB  0Ah,0Dh,'Parameter #1 : ',0
 ParmName2         DB  0Ah,0Dh,'Parameter #2 : ',0 
-ParmName3         DB  0Ah,0Dh,'Parameter #3 : ',0
-ParmName4         DB  0Ah,0Dh,'Parameter #4 : ',0
 Interpreted1      DB  0Ah,0Dh,'File path    : ',0
 Interpreted2      DB  0Ah,0Dh,'File size    : ',0
-Interpreted3      DB  0Ah,0Dh,'NUMA domain  : ',0
-Interpreted4      DB  0Ah,0Dh,'Processor    : ',0
 ;--- Console trace messages ---
 TraceWriteDelay   DB  'Delay before write...'    , 0Ah , 0Dh , 0
-TraceWrite        DB  'Write...'                 , 0Ah , 0Dh , 0
+TraceInitWrite    DB  'Initializing write...'    , 0Ah , 0Dh , 0
 TraceReadDelay    DB  'Delay before read...'     , 0Ah , 0Dh , 0
-TraceRead         DB  'Read...'                  , 0Ah , 0Dh , 0
-TraceBuiltResult  DB  'Built result strings...'  , 0Ah , 0Dh , 0
+TraceInitRead     DB  'Initializing read...'     , 0Ah , 0Dh , 0
+TraceBuildResult  DB  'Build result strings...'  , 0Ah , 0Dh , 0
+;--- Console trace messages with debug dump ---
+TraceWriteDump    DB  'Write ( '                            ; Write parameters
+TWD1:             DB  '________________, '                  ; File handle
+TWD2:             DB  '________________, '                  ; Map handle 
+TWD3:             DB  '________________-'                   ; Map start
+TWD4:             DB  '________________ )...', 0Ah, 0Dh, 0  ; Map end                   
+TraceReadDump     DB  'Read ( '                             ; Read parameters
+TRD1:             DB  '________________, '                  ; File handle
+TRD2:             DB  '________________, '                  ; Map handle 
+TRD3:             DB  '________________-'                   ; Map start
+TRD4:             DB  '________________ )...', 0Ah, 0Dh, 0  ; Map end                   
 ;--- Names for operations steps ---
 ; Write phase steps
 StepCreateW        DB  'Create file for write',0
@@ -854,18 +699,18 @@ ErrorStatusString  DB  'Error status: ',0
 ;--- Error messages for command line parameters error ---
 CmdLineError:
 DB  0Ah, 0Dh
-DB  'ERROR in command line, usage:'                     , 0Ah , 0Dh
-DB  'daxbench <path> <size in MB> <domain> <processor>' , 0Ah , 0Dh
-DB  'Example default:'                                  , 0Ah , 0Dh
-DB  './daxbench_numa myfile.bin 1024 0 0'               , 0Ah , 0Dh , 0
+DB  'ERROR in command line, usage:'    , 0Ah , 0Dh
+DB  'daxbench <path> <size in MB>'     , 0Ah , 0Dh
+DB  'Example default:'                 , 0Ah , 0Dh
+DB  'daxbench myfile.bin 1024'         , 0Ah , 0Dh , 0
 ;--- Warning messages for default mode, command line parameters absent ---
 CmdLineEmpty:
 DB  0Ah, 0Dh 
-DB  'WARNING: command line empty, defaults used,'       , 0Ah , 0Dh
-DB  'can accept parameters:'                            , 0Ah , 0Dh           
-DB  'daxbench <path> <size in MB> <domain> <processor>' , 0Ah , 0Dh
-DB  'Example:'                                          , 0Ah , 0Dh
-DB  './daxbench_numa myfile.bin 1024 0 0'               , 0
+DB  'WARNING: command line empty, defaults used,' , 0Ah , 0Dh
+DB  'can accept parameters:'                      , 0Ah , 0Dh           
+DB  './daxbench <path> <size in MB>'              , 0Ah , 0Dh
+DB  'Example:'                                    , 0Ah , 0Dh
+DB  './daxbench myfile.bin 1024'                  , 0
 ;--- Carriage Return, Line Feed, service for text output ---
 CrLf2:
 DB  0Ah,0Dh
@@ -880,25 +725,17 @@ U_TB  DB  'TB',0
 ;--- Constants for calculations ---
 WinSeconds  DD 10000000    ; 100ns units / this = 1s units
 ConstK100   DD 1024*100
-;--- Support NUMA-oriented functions --- 
-Function_CreateFileMappingNumaA  DQ  0             ; Function pointer
-ThreadHandle  DQ  0                                ; Thread handle
-NameKernel32  DB  'KERNEL32.DLL',0                 ; Library name
-NameFunction  DB  'CreateFileMappingNumaA',0       ; Function name
 ;--- Buffers ---
 ; This buffers must be last data objects for file size optimization,
 ; because allocated only, data pattern not defined.
 ;---
-ReadBuffer    DB  512 DUP (?)     ; Get data from console input
-Parameter1    DB  512 DUP (?)     ; Extract command line parameter #1
-Parameter2    DB  512 DUP (?)     ; Extract command line parameter #2
-Parameter3    DB  512 DUP (?)     ; Extract command line parameter #3
-Parameter4    DB  512 DUP (?)     ; Extract command line parameter #4
-TextBuffer    DB  512 DUP (?)     ; Transit buffer for text block built
+ReadBuffer    DB  512 DUP (?)    ; Get data from console input
+Parameter1    DB  512 DUP (?)    ; Extract command line parameter #1
+Parameter2    DB  512 DUP (?)    ; Extract command line parameter #2
+TextBuffer    DB  512 DUP (?)    ; Transit buffer for text block build
 
 ;========== Import data section ===============================================;
 
 section '.idata' import data readable writeable
-library kernel32 , 'KERNEL32.DLL' ; , user32 , 'USER32.DLL'
+library kernel32 , 'KERNEL32.DLL'
 include 'api\kernel32.inc'
-; include 'api\user32.inc'

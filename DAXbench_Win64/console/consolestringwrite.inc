@@ -34,8 +34,10 @@ lea rcx,[CrLf]
 ;----------------------------------------------;
 ConsoleStringWrite:
 ;--- Entry ---
-push rbp                     ; RBP = non-volatile, RAX = for storage
+push rbp
 mov rbp,rsp                   ; RBP = storage for RSP and pointer to frame
+xor eax,eax
+push rax                      ; Scratch pad
 and rsp,0FFFFFFFFFFFFFFF0h    ; Align stack
 ;--- Calculate string length ---
 mov rdx,rcx                   ; RDX = Parm#2 = Pointer to string
@@ -48,7 +50,7 @@ jmp @b                        ; Go next iteration
 @@:
 ;--- Write console ---
 mov rcx,[OutputDevice]        ; RCX = Parm#1 = Input device handle
-mov r9,rbp                    ; R9  = Parm#4 = Pointer to out. variable, count
+lea r9,[rbp-8]                ; R9  = Parm#4 = Pointer to out. variable, count
 xor eax,eax                   ; EAX = 0
 push rax rax                  ; Align stack + Parm#5 = Reserved
 sub rsp,32                    ; Create parameters shadow
