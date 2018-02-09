@@ -2,7 +2,7 @@
 ;                                                                              ;
 ;         DAX-optimized benchmarks for memory mapping files swapping.          ;
 ;                          (engineering release).                              ;
-;                              Win64 Edition.                                  ; 
+;                              Win32 Edition.                                  ; 
 ;                           (C)2018 IC Book Labs.                              ;
 ;                                                                              ;
 ;  This file is main module: translation object, interconnecting all modules.  ;
