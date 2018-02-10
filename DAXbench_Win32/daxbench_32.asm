@@ -213,19 +213,19 @@ rep stosd                     ; Write array
 push edi
 mov eax,ebx
 lea edi,[TWD1]
-call HexPrint32
+call HexPrint32           ; Print file handle
 mov eax,ebp
 lea edi,[TWD2]
-call HexPrint32
+call HexPrint32           ; Print mapping object handle
 mov eax,esi
 lea edi,[TWD3]
-call HexPrint32
+call HexPrint32           ; Print mapping region start address
 lea eax,[esi-1]
 add eax,[UsedSize] 
 lea edi,[TWD4]
-call HexPrint32
+call HexPrint32           ; Print mapping region end address
 lea ecx,[TraceWriteDump]
-call ConsoleStringWrite
+call ConsoleStringWrite   ; Output prepared string to console
 pop edi
 
 ;---------- Flush buffer (write to disk) with time measurement ----------------;
@@ -243,8 +243,6 @@ call [FlushViewOfFile]
 test eax,eax
 jz ErrorProgram                 ; Go if flush operation error
 ;--- End measured time ---
-xor eax,eax                     ; EAX = 0
-push eax                        ; Create variable for update by function
 push TimerStop                  ; Parm#1 = Pointer to updated variable (time)
 call [GetSystemTimeAsFileTime]  ; Update variable time stamp, units = 100 ns
 
@@ -291,7 +289,7 @@ jz ErrorProgram               ; Go if unmap operation error
 lea ecx,[TraceReadDelay]
 call ConsoleStringWrite
 
-mov ecx,40*1000   ; Parm#1 = sleep time, milliseconds, note RCX[63-32] cleared
+push 40*1000      ; Parm#1 = sleep time, milliseconds, note RCX[63-32] cleared
 call [Sleep]      ; This method is simplest and minimum CPU utilization
 
 ;---------- Open file ---------------------------------------------------------;
@@ -348,19 +346,19 @@ xchg esi,eax                 ; ESI = Mapping Object Address
 push edi
 mov eax,ebx
 lea edi,[TRD1]
-call HexPrint32
+call HexPrint32           ; Print file handle
 mov eax,ebp
 lea edi,[TRD2]
-call HexPrint32
+call HexPrint32           ; Print mapping object handle
 mov eax,esi
 lea edi,[TRD3]
-call HexPrint32
+call HexPrint32           ; Print mapping region start address
 lea eax,[esi-1]
 add eax,[UsedSize] 
 lea edi,[TRD4]
-call HexPrint32
+call HexPrint32           ; Print mapping region end address
 lea ecx,[TraceReadDump]
-call ConsoleStringWrite
+call ConsoleStringWrite   ; Output prepared string to console
 pop edi
 
 ;---------- Memory read for make swapping request, measure time ---------------;
@@ -608,7 +606,7 @@ FILE_FLAGS  EQU  FILE_ATTRIBUTE_NORMAL     \
 FileFlags         DD  FILE_FLAGS
 ;--- Product ID string ---
 ProductID         DB  0Ah,0Dh
-                  DB  'Swapping/DAX benchmarks v0.13 (Windows ia32 console)'
+                  DB  'Swapping/DAX benchmarks v0.14 (Windows ia32 console)'
                   DB  0Ah,0Dh
                   DB  '(C) 2018 IC Book Labs.',0  
 ;--- Parameters names strings ---              

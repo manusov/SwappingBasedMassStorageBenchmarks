@@ -228,19 +228,19 @@ rep stosq                    ; Write array
 push rdi
 mov rax,rbx
 lea rdi,[TWD1]
-call HexPrint64
+call HexPrint64           ; Print file handle
 mov rax,rbp
 lea rdi,[TWD2]
-call HexPrint64
+call HexPrint64           ; Print mapping object handle
 mov rax,rsi
 lea rdi,[TWD3]
-call HexPrint64
+call HexPrint64           ; Print mapping region start address
 lea rax,[rsi-1]
 add rax,[UsedSize] 
 lea rdi,[TWD4]
-call HexPrint64
+call HexPrint64           ; Print mapping region end address
 lea rcx,[TraceWriteDump]
-call ConsoleStringWrite
+call ConsoleStringWrite   ; Output prepared string to console
 pop rdi
 
 ;---------- Flush buffer (write to disk) with time measurement ----------------;
@@ -375,19 +375,19 @@ xchg rsi,rax                 ; RSI = Mapping Object Address
 push rdi
 mov rax,rbx
 lea rdi,[TRD1]
-call HexPrint64
+call HexPrint64           ; Print file handle
 mov rax,rbp
 lea rdi,[TRD2]
-call HexPrint64
+call HexPrint64           ; Print mapping object handle
 mov rax,rsi
 lea rdi,[TRD3]
-call HexPrint64
+call HexPrint64           ; Print mapping region start address
 lea rax,[rsi-1]
 add rax,[UsedSize] 
 lea rdi,[TRD4]
-call HexPrint64
+call HexPrint64           ; Print mapping region end address
 lea rcx,[TraceReadDump]
-call ConsoleStringWrite
+call ConsoleStringWrite   ; Output prepared string to console
 pop rdi
 
 ;---------- Memory read for make swapping request, measure time ---------------;
@@ -639,7 +639,7 @@ FILE_FLAGS  EQU  FILE_ATTRIBUTE_NORMAL     \
 FileFlags         DQ  FILE_FLAGS
 ;--- Product ID string ---
 ProductID         DB  0Ah,0Dh
-                  DB  'Swapping/DAX benchmarks v0.13 (Windows x64 console)'
+                  DB  'Swapping/DAX benchmarks v0.14 (Windows x64 console)'
                   DB  0Ah,0Dh
                   DB  '(C) 2018 IC Book Labs.',0  
 ;--- Parameters names strings ---              
